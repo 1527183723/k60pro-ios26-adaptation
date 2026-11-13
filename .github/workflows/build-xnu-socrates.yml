@@ -21,6 +21,9 @@ jobs:
         run: |
           brew install make unifdef
           echo "$(brew --prefix make)/libexec/gnubin" >> "$GITHUB_PATH"
+          echo "$(brew --prefix unifdef)/bin" >> "$GITHUB_PATH"
+          printf '#!/bin/sh\nsysctl -n hw.ncpu\n' > /tmp/nproc
+          sudo install -m 755 /tmp/nproc /usr/local/bin/nproc
 
       - name: Apply XNU source
         run: |
