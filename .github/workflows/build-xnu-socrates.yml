@@ -42,6 +42,17 @@ jobs:
           export XNU26_DEPS="$GITHUB_WORKSPACE/xnu-deps/26"
           MAKE=gmake bash xnu26/build-macos.sh exporthdrs installhdrs
 
+      - name: Prepare pthread header
+        run: |
+          mkdir -p xnu-deps/build/pthread/inc
+          for sdk in "$(xcrun --sdk iphoneos --show-sdk-path)" "$(xcrun --sdk macosx --show-sdk-path)"; do
+            if [ -f "$sdk/usr/include/TargetConditionals.h" ]; then
+              cp "$sdk/usr/include/TargetConditionals.h" xnu-deps/build/pthread/inc/
+              break
+            fi
+          done
+          test -f xnu-deps/build/pthread/inc/TargetConditionals.h
+
       - name: Stage 2 dependencies
         run: |
           export XNU26_SRC="$GITHUB_WORKSPACE/xnu-src/xnu-12377.121.6"
