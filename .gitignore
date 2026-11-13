@@ -1,0 +1,6 @@
+out/
+xnu-src/
+xnu-deps/
+*.o
+*.pyc
+__pycache__/
