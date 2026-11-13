@@ -22,3 +22,11 @@ debug=0x10e rootdev=md0 launchd_unsecure_cache=1 panic_on_crash_disabled=1 cpus=
 - 触摸已按 socrates 的 QUP1 SE4 / Goodix m11 参数修改，但尚未真机验证。
 - CPU 调频、按键、电量、GPU、Wi-Fi 仍未启用；当前 payload 不带 adreno8、cpufreq、battery、wifi、pcie、metal。
 - 真机测试前请确认连接的是 K60 Pro（ro.product.device=socrates），不要把它和 haotian 混淆。
+
+## 真机验证记录
+
+- 标准 fastboot `fastboot boot socrates-boot.img` 返回 OKAY，但设备仍停在 fastboot，没有 xnuloader。
+- `adb reboot fastboot` 进入 fastbootd：`is-userspace: yes`，`product: socrates`。
+- fastbootd 中 `fastboot boot socrates-boot-simplefb-v3.img` 返回 `FAILED (remote: 'Unrecognized command boot')`。
+- 工程内没有 `edl` / `qdl` / `QFIL` 等 9008 工具，EDL 路线尚未建立。
+- 结论：K60 Pro 的原厂 bootloader 不支持本项目的临时 `fastboot boot` 启动方式；不写 boot 分区时无法继续真机启动。
