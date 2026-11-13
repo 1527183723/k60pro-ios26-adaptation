@@ -18,7 +18,9 @@ jobs:
           xcrun --sdk iphoneos --show-sdk-path
 
       - name: Install host tools
-        run: brew install gmake unifdef
+        run: |
+          brew install make unifdef
+          echo "$(brew --prefix make)/libexec/gnubin" >> "$GITHUB_PATH"
 
       - name: Apply XNU source
         run: |
