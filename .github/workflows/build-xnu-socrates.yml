@@ -2,6 +2,8 @@ name: build-xnu-socrates
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
   build:
@@ -65,8 +67,17 @@ jobs:
           export XNU26_DEPS="$GITHUB_WORKSPACE/xnu-deps/26"
           MAKE=gmake bash xnu26/build-macos.sh -j"$(sysctl -n hw.ncpu)"
 
+      - name: Record fixed-kernel provenance
+        run: |
+          python3 -B tools/k60pro/kernel_provenance.py \
+            --repo "$GITHUB_WORKSPACE" \
+            --kernel xnu-src/xnu-12377.121.6/BUILD/obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837 \
+            --output out/socrates-kernel-provenance.json
+
       - name: Upload kernel
         uses: actions/upload-artifact@v4
         with:
           name: xnu-socrates
-          path: xnu-src/xnu-12377.121.6/BUILD/obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837
+          path: |
+            xnu-src/xnu-12377.121.6/BUILD/obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837
+            out/socrates-kernel-provenance.json

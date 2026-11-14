@@ -57,10 +57,54 @@ def sections(data):
         offset = align(offset + size, 4)
 
 
+def verify_source_provenance(mu, allowed_paths, expected_head=None):
+    """Check local source changes and recursively pinned submodule revisions."""
+    def git(*words):
+        return subprocess.check_output(["git", "-C", str(mu), *words], text=True,
+                                       encoding="utf-8", errors="surrogateescape", timeout=30)
+    head = git("rev-parse", "HEAD").strip()
+    require(re.fullmatch(r"[0-9a-f]{40,64}", head), "invalid Mu HEAD revision")
+    if expected_head is not None:
+        require(head == expected_head, "Mu HEAD differs from expected revision")
+    changed = set(filter(None, git("diff", "HEAD", "--name-only", "-z", "--no-ext-diff",
+                                   "--ignore-submodules=none").split("\0")))
+    records = git("status", "--porcelain=v1", "-z", "--untracked-files=all",
+                  "--ignore-submodules=none").split("\0")
+    index = 0
+    while index < len(records):
+        item = records[index]
+        index += 1
+        if not item:
+            continue
+        require(len(item) > 3 and item[2] == " ", "invalid Mu status record")
+        state, path = item[:2], item[3:]
+        require("U" not in state and state not in ("AA", "DD"), "unmerged Mu source: " + path)
+        changed.add(path)
+        if "R" in state or "C" in state:
+            require(index < len(records) and records[index], "missing rename source")
+            changed.add(records[index])
+            index += 1
+    changed.update(filter(None, git("ls-files", "--others", "--exclude-standard", "-z").split("\0")))
+    submodules = []
+    for line in git("submodule", "status", "--recursive").splitlines():
+        if not line:
+            continue
+        match = re.fullmatch(r"([ +U-])([0-9a-f]{40,64}) (.+?)(?: \(.*\))?", line)
+        require(match is not None, "invalid recursive submodule status: " + line)
+        state, revision, path = match.groups()
+        require(state == " ", "submodule is uninitialized, conflicted or has a different HEAD: " + path)
+        submodules.append({"path": path, "head": revision, "state": "pinned"})
+    unexpected = changed - set(allowed_paths)
+    require(not unexpected, "unexpected Mu source paths: " + ", ".join(sorted(unexpected)))
+    return {"head": head, "changed_paths": sorted(changed), "submodules": submodules,
+            "coverage": ["HEAD-relative", "staged", "unstaged", "untracked", "recursive-submodules"]}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--output", type=Path, default=ROOT / "out/dada-display-only-r1")
     ap.add_argument("--mu", required=True, type=Path)
+    ap.add_argument("--expected-mu-head", help="Optional exact Mu source revision pin")
     ap.add_argument("--image-name", default="warsaw-dada-display-only-r1.img")
     ap.add_argument("--loader-name", default="loader-dada-display.efi")
     args = ap.parse_args()
@@ -183,13 +227,14 @@ def main():
         check(actual == expected and "#define PLAT_PHONE (&platform_warsaw)" in macros,
               f"preprocessed display {expected}, original warsaw platform")
     geometry = load("dada_prepare", ROOT / "tools/dada/prepare_uefi.py").panel_geometry(out / "inputs/dada-merged.dtb")
-    source_changes = subprocess.check_output(["git", "-C", str(mu), "diff", "--name-only",
-                                              "--ignore-submodules=all"], text=True).splitlines()
-    check(set(source_changes) == {"Platforms/Xiaomi/annibalePkg/annibale.dsc",
-                                  "Platforms/Xiaomi/annibalePkg/FdtBlob/sm8750-xiaomi-annibale.dtb",
-                                  "Resources/DTBs/annibale.dtb"},
+    allowed_paths = {"Platforms/Xiaomi/annibalePkg/annibale.dsc",
+                     "Platforms/Xiaomi/annibalePkg/FdtBlob/sm8750-xiaomi-annibale.dtb",
+                     "Resources/DTBs/annibale.dtb"}
+    provenance = verify_source_provenance(mu, allowed_paths, expected_head=args.expected_mu_head)
+    check(set(provenance["changed_paths"]) == allowed_paths,
           "Mu platform modifications limited to two DTB files and display DSC")
-    report = {"status": "PASS", "hardware_tested": False, "checks": checks,
+    checks.append("Mu HEAD-relative, staged, untracked and recursive submodule provenance")
+    report = {"status": "PASS", "hardware_tested": False, "checks": checks, "provenance": provenance,
               "image_bytes": len(image), "image_sha256": sha(image), "geometry": geometry,
               "framebuffer_stride_bytes": 1200 * 4,
               "xnup_body_bytes": body_size, "xnup_copy_bytes": copy_size,

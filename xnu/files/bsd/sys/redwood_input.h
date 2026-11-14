@@ -24,6 +24,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define REDWOOD_TOUCH_DEVICE    "/dev/redwood-touch"
 
 /* Frames put on the panel since boot, kept by the framebuffer and read as kern.redwood.frames.
@@ -155,6 +159,10 @@ void redwood_gpu_speed(uint32_t *mhz, uint32_t *changes);      /* the A830's spe
 void redwood_gpu_report(const char *why);
 bool redwood_gpu_recover(void);
 void redwood_gpu_stop(void);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* _SYS_REDWOOD_INPUT_H_ */

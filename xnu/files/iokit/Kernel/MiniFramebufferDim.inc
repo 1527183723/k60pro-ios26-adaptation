@@ -73,6 +73,11 @@ dim_sqrt(uint32_t n)
 static void
 dim_find(void)
 {
+	if (redwood_platform_is_socrates()) {
+		gDim = 0;
+		return;
+	}
+
 	uint32_t active;
 
 	for (dim.ctl = 0; dim.ctl < 6 && !(flip_rd(FLIP_CTL(dim.ctl) + FLIP_CTL_INTF_ACTIVE) & 0x6); dim.ctl++) {
@@ -163,6 +168,10 @@ dim_write(uint32_t alpha)
 void
 MiniIOMobileFramebufferDim(uint32_t level)
 {
+	if (redwood_platform_is_socrates()) {
+		return;
+	}
+
 	uint32_t alpha = dim_sqrt((level < 1024 ? level : 1024) << 10);
 	int32_t took;
 
@@ -191,6 +200,10 @@ MiniIOMobileFramebufferDim(uint32_t level)
 int
 MiniIOMobileFramebufferDimShown(void)
 {
+	if (redwood_platform_is_socrates()) {
+		return -1;
+	}
+
 	return dim.ready ? (int) (flip_rd(dim.stage[0] + DIM_STAGE_CONST_ALPHA) >> 16 & DIM_ALPHA_FULL) : -1;
 }
 
@@ -198,6 +211,10 @@ MiniIOMobileFramebufferDimShown(void)
 static void
 dim_quiesce(void)
 {
+	if (redwood_platform_is_socrates()) {
+		return;
+	}
+
 	if (!dim.ready || !dim.dimmed) {
 		return;
 	}
@@ -210,6 +227,10 @@ dim_quiesce(void)
 static void
 dim_poweroff(void)
 {
+	if (redwood_platform_is_socrates()) {
+		return;
+	}
+
 	if (!dim.ready) {
 		return;
 	}

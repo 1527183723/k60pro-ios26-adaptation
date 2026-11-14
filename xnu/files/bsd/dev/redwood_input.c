@@ -11,6 +11,7 @@
 #include <sys/errno.h>
 #include <sys/proc.h>
 #include <sys/redwood_input.h>
+#include <sys/redwood_build_provenance.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
@@ -402,11 +403,16 @@ static const struct cdevsw touch_cdevsw = {
 void
 redwood_input_init(void)
 {
+	static bool socrates_revision_logged;
 	int major = cdevsw_add(-1, &touch_cdevsw);
 
 	(void)redwood_platform_blocks_legacy_drivers();         /* (worked out here, on one thread: see above) */
 	(void)redwood_platform_is_annibale();
-	(void)redwood_platform_is_socrates();
+	if (redwood_platform_is_socrates() && !socrates_revision_logged) {
+		socrates_revision_logged = true;
+		printf("redwood-input: K60PRO_STATIC_FIX_V1 (DRV2, legacy driver/display gates)\n");
+		printf("redwood-input: %s\n", "K60PRO_SOURCE_SHA256:" REDWOOD_BUILD_SOURCE_SHA256);
+	}
 	if (major < 0 || devfs_make_node(makedev(major, 0), DEVFS_CHAR, UID_ROOT, GID_WHEEL, 0666, "redwood-touch") == NULL) {
 		printf("redwood-touch: cannot create the device\n");
 	}

@@ -19,6 +19,7 @@
 #include <sys/kernel.h>
 #include <sys/param.h>
 #include <sys/redwood_audio.h>
+#include <sys/redwood_input.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 
@@ -655,6 +656,11 @@ configure_i2s_pins(void)
 void
 annibale_audio_reach_init(void)
 {
+	/* These legacy blocks have not been ported to SM8550; no boot arg overrides this. */
+	if (redwood_platform_is_socrates()) {
+		return;
+	}
+
 	say("initializing ADSP AudioReach & LPASS subsystem...\n");
 
 	if (audio_lock_grp == NULL) {
@@ -679,7 +685,7 @@ annibale_audio_reach_init(void)
 			buffer_pa = low + 0x7f00000ULL;
 		}
 	} else {
-		buffer_pa = 0x90000000ULL; /* Default lower memory region */
+		buffer_pa = 0x90000000ULL; /* Legacy-only fallback; socrates returns before DMA setup. */
 	}
 	dsp_address = buffer_pa;
 	reach_buffer = (volatile uint8_t *)ml_io_map_wcomb(buffer_pa, BUFFER_BYTES);

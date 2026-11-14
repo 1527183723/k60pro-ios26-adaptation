@@ -37,6 +37,7 @@
 #include <sys/errno.h>
 #include <sys/proc.h>
 #include <sys/redwood_audio.h>
+#include <sys/redwood_input.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 #include <vm/vm_kern.h>
@@ -338,6 +339,11 @@ audio_recording_init(void)
 void
 redwood_audio_init(void)
 {
+	/* These legacy blocks have not been ported to SM8550; no boot arg overrides this. */
+	if (redwood_platform_is_socrates()) {
+		return;
+	}
+
 	annibale_reboot_probe();
 	int major = cdevsw_add(-1, &audio_cdevsw);
 

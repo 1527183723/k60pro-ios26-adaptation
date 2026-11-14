@@ -19,6 +19,7 @@
 #include <sys/errno.h>
 #include <sys/proc.h>
 #include <sys/redwood_camera.h>
+#include <sys/redwood_input.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 
@@ -530,6 +531,11 @@ static const struct cdevsw annibale_cam_cdevsw = {
 void
 annibale_camera_init(void)
 {
+	/* These legacy blocks have not been ported to SM8550; no boot arg overrides this. */
+	if (redwood_platform_is_socrates()) {
+		return;
+	}
+
 	static bool initialized = false;
 	if (initialized) {
 		return;

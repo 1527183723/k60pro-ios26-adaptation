@@ -552,7 +552,7 @@ board_setup(uint32_t which)
 		board_socrates = 1;
 		tlmm_phys = 0x0f100000UL;  tlmm_size = 0x01000000UL;
 		se_phys = 0x00a90000UL;                             /* qupv3_1 SE4, spi@a90000 */
-		rsc_phys = 0x17a00000UL;                            /* apps_rsc@17a00000, drv-2 */
+		rsc_phys = 0x17a20000UL;                            /* apps_rsc drv-2; TCS starts at +0xd00 */
 		cmd_db_phys = 0x81c60000UL;  cmd_db_size = 0x20000UL;
 		supply_name = "ldob12";                             /* vdd/iovdd */
 		avdd_supply_name = "ldob14";                        /* avdd, 3.2 V */

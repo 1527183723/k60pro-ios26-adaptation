@@ -326,8 +326,13 @@ dsu_slot_io(int write, uint64_t at, uint64_t len, uint8_t *buf)
 		}
 		n = extent - at < len ? extent - at : len;
 		lba = (dsu_store_extent[x].sector * 512 + at) / bs;
+
+#ifdef DADA_USB_RAM_ONLY
+		s = write ? EFI_WRITE_PROTECTED : bio->read_blocks(bio, bio->media->media_id, lba, n, buf);
+#else
 		s = write ? bio->write_blocks(bio, bio->media->media_id, lba, n, buf) :
 		    bio->read_blocks(bio, bio->media->media_id, lba, n, buf);
+#endif
 		if (EFI_ERROR(s)) {
 			return s;
 		}

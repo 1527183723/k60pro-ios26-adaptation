@@ -85,6 +85,13 @@ static const struct platform platform_warsaw = {
 };
 
 /*
+ * socrates (REDMI K60 Pro, SM8550-AB): values from common/devices/socrates.dtb,
+ * pulled from the phone's own /sys/firmware/fdt. The GIC, CPU topology and splash
+ * region are kalama, not sun; the panel is 1440x3200.
+ */
+#include "../common/devices/socrates.platform.c"
+
+/*
  * The devices the loader knows, told apart by the framebuffer base their UEFI reports. A port to another
  * device adds its description here (common/new-device.sh writes a starting point, docs/PORTING.md says
  * where each value comes from); a display that matches none is QEMU's ramfb.
@@ -93,13 +100,14 @@ static const struct platform *const platforms[] = {
 	&platform_redwood,
 	&platform_annibale,
 	&platform_warsaw,
+	&platform_socrates,
 };
 
 /*
  * A phone build is built for exactly one device, and the profile says which: warsaw.conf passes
- * -DWARSAW (LOADER_CFLAGS), every other phone keeps annibale. warsaw and annibale report the same
- * framebuffer base, so the platform table cannot tell them apart by itself — this macro can, and it
- * also carries the panel geometry the DIRECT_PHONE_PLAT path has to hardcode.
+ * -DWARSAW, socrates.conf passes -DSOCRATES, every other phone keeps annibale. warsaw, annibale
+ * and socrates report their own framebuffer bases; this macro also carries the panel geometry the
+ * DIRECT_PHONE_PLAT path has to hardcode.
  */
 #ifdef WARSAW
 #define PLAT_PHONE      (&platform_warsaw)
@@ -111,6 +119,10 @@ static const struct platform *const platforms[] = {
 #define PLAT_PANEL_W    1280
 #define PLAT_PANEL_H    2772
 #endif
+#elif defined(SOCRATES)
+#define PLAT_PHONE      (&platform_socrates)
+#define PLAT_PANEL_W    SOCRATES_WIDTH
+#define PLAT_PANEL_H    SOCRATES_HEIGHT
 #else
 #define PLAT_PHONE      (&platform_annibale)
 #define PLAT_PANEL_W    1156

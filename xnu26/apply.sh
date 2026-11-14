@@ -16,6 +16,9 @@ URL=${XNU_URL:-https://github.com/apple-oss-distributions/xnu.git}
 TAG=xnu-12377.121.6
 BASE=ac9718fb1af618d5ce8678d0dc6e8a58f252216f
 
+# Prepare the derived header before copying any overlay into a fresh tree.
+python3 -B "$HERE/../tools/k60pro/prepare_kernel_provenance.py" --repo "$HERE/.."
+
 [ -e "$DIR" ] && { echo "apply.sh: $DIR already exists; not touching it" >&2; exit 1; }
 mkdir -p "$(dirname "$DIR")"
 DIR=$(cd "$(dirname "$DIR")" && pwd)/$(basename "$DIR")
@@ -43,4 +46,7 @@ superboyyy) python3 "$HERE/../tools/dada/apply_touch_port.py" --tree "$DIR" \
 0) ;;
 *) echo "Unknown DADA_NATIVE_TOUCH selection: $DADA_NATIVE_TOUCH" >&2; exit 2 ;;
 esac
+# Only a fresh successfully applied tree receives a matching source receipt.
+python3 -B "$HERE/../tools/k60pro/prepare_kernel_provenance.py" --repo "$HERE/.." \
+	--tree "$DIR" --record-tree
 echo "apply.sh: $DIR: $TAG + $(wc -l < "$HERE/patches/series" | tr -d ' ') pieces"

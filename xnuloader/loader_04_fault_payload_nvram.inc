@@ -71,7 +71,8 @@ wdt_arm(void)
 {
 	uint64_t ctl = 0, since = 0;
 
-	if (PLAT != &platform_redwood && PLAT != &platform_annibale && PLAT != &platform_warsaw) {
+	if (PLAT != &platform_redwood && PLAT != &platform_annibale && PLAT != &platform_warsaw &&
+	    PLAT != &platform_socrates) {
 		return; /* SMC is not routed anywhere useful on QEMU virt */
 	}
 	uint64_t st = smc_call(VIRT_WDT_STATUS, 0, 0, &ctl, &since);
@@ -107,7 +108,7 @@ exception_handler(int64_t type, uint64_t *ctx)
 	    ctx[EXC_CTX_ESR], ctx[EXC_CTX_FAR], ctx[EXC_CTX_LR], ctx[EXC_CTX_SP], ctx[EXC_CTX_SPSR]);
 	print("loader image base %x (elr offset %x)\n", (uint64_t)(uintptr_t)&__ImageBase,
 	    ctx[EXC_CTX_ELR] - (uint64_t)(uintptr_t)&__ImageBase);
-	if ((PLAT == &platform_annibale || PLAT == &platform_warsaw) && screen_quiet) {
+	if ((PLAT == &platform_annibale || PLAT == &platform_warsaw || PLAT == &platform_socrates) && screen_quiet) {
 		/*
 		 * Preserve the fault for USB retrieval; a new kernel needs a host-requested reboot.
 		 * This branch is the fault state itself, so it records one before it starts serving.

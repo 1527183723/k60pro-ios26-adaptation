@@ -113,6 +113,10 @@ flip_branch_on(vm_offset_t cbcr, const char * name)
 static bool
 flip_clocks(void)
 {
+	if (redwood_platform_is_socrates()) {
+		return false;
+	}
+
 	static const struct {
 		uint32_t        off;
 		const char *    name;
@@ -242,6 +246,15 @@ flip_point(int which)
 static void
 flip_start(uint64_t fb, uint8_t * fbBase, uint32_t bytes, uint32_t rows)
 {
+	/* Boot args from older payloads cannot enable unported SM8750 display registers. */
+	if (redwood_platform_is_socrates()) {
+		gFlip = 0;
+		gDim = 0;
+		gDcs = 0;
+		flip.ready = false;
+		return;
+	}
+
 	uint64_t b;
 
 	if ((gFlip == 0 && gDim == 0 && gDcs == 0) || !flip_clocks() ||

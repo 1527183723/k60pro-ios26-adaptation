@@ -6,6 +6,9 @@
 # env: MACHINE (default BCM2837), KERNEL_CONFIG (default DEVELOPMENT), RC_DARWIN_KERNEL_VERSION (default
 #      25.6.0, the Darwin version of iOS 26.6; Apple's build takes it from the SDK's System.kext)
 source "$(dirname "${BASH_SOURCE[0]}")/env-macos.sh"
+# Refresh the header only after verifying the applied sources and their receipt.
+python3 -B "$XNU26_ROOT/tools/k60pro/prepare_kernel_provenance.py" \
+    --repo "$XNU26_ROOT" --tree "$XNU26_SRC" || exit $?
 cd "$XNU26_SRC" || exit 1
 SRC=$PWD
 export RC_DARWIN_KERNEL_VERSION=${RC_DARWIN_KERNEL_VERSION:-25.6.0}

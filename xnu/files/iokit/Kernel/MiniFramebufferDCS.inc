@@ -483,6 +483,10 @@ dcs_check(thread_call_param_t, thread_call_param_t)
 bool
 MiniIOMobileFramebufferDCS(uint32_t value)
 {
+	if (redwood_platform_is_socrates()) {
+		return false;
+	}
+
 	uint64_t now, next;
 
 	if (gDcs < 4 || (dcs.state != DCS_START && dcs.state != DCS_READY)) {
@@ -499,6 +503,11 @@ MiniIOMobileFramebufferDCS(uint32_t value)
 static void
 dcs_start(void)
 {
+	if (redwood_platform_is_socrates()) {
+		gDcs = 0;
+		return;
+	}
+
 	if (gDcs == 0) {
 		return;
 	}

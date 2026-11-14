@@ -496,6 +496,10 @@ safe_read_blocks(efi_block_io *bio, uint64_t lba, uint64_t num_blocks, uint32_t 
 static efi_status
 safe_write_blocks(efi_block_io *bio, uint64_t lba, uint64_t num_blocks, uint32_t bs, const void *buf)
 {
+#ifdef DADA_USB_RAM_ONLY
+	(void)bio; (void)lba; (void)num_blocks; (void)bs; (void)buf;
+	return EFI_WRITE_PROTECTED;
+#else
 	efi_status s = bio->write_blocks(bio, bio->media->media_id, lba, num_blocks * bs, (void *)buf);
 	if (EFI_ERROR(s)) {
 		const uint8_t *p = (const uint8_t *)buf;
@@ -505,6 +509,7 @@ safe_write_blocks(efi_block_io *bio, uint64_t lba, uint64_t num_blocks, uint32_t
 		}
 	}
 	return s;
+#endif
 }
 
 static void
@@ -668,7 +673,7 @@ spmi_buttons_init(struct spmi_btn_ctx *ctx)
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->pon_ch = -1;
 	ctx->pin_ch = -1;
-	if (SCREEN.base != platform_annibale.fb_base) return;
+	if (SCREEN.base != platform_annibale.fb_base && SCREEN.base != platform_socrates.fb_base) return;
 
 	uint32_t ver = *(volatile uint32_t *)(SPMI_ARB_CORE + 0x000);
 	if (ver < 0x70000000u) return;
@@ -831,6 +836,10 @@ ui_boot_menu(void)
 static void
 gpt_sync_lun(efi_block_io *bio)
 {
+#ifdef DADA_USB_RAM_ONLY
+	(void)bio;
+	return;
+#else
 	if (!bio || !bio->media) return;
 	uint32_t bs = bio->media->block_size;
 	if (bs < 512 || bs > 4096) return;
@@ -876,6 +885,7 @@ gpt_sync_lun(efi_block_io *bio)
 	bio->flush_blocks(bio);
 	print("slot: GPT CRC-32 synchronized (entries=%x primary=%x backup=%x at LBA %x)\n",
 	    (uint64_t)entries_crc, (uint64_t)primary_crc, (uint64_t)backup_crc, alt_lba);
+#endif
 }
 
 static uint32_t
@@ -915,6 +925,10 @@ gpt_swap_ab_type_guids(uint8_t *entries, uint32_t num_entries, uint32_t entry_si
 static void
 slot_apply_active(char target_slot)
 {
+#ifdef DADA_USB_RAM_ONLY
+	(void)target_slot;
+	return;
+#else
 	efi_block_io *bio = lun4_get_bio();
 	if (!bio || !bio->media) return;
 	uint32_t bs = bio->media->block_size;
@@ -979,6 +993,7 @@ slot_apply_active(char target_slot)
 	}
 	print("slot: Slot %s (%s) active=0x006f000000000000 (%s=0x006a000000000000)\n",
 	    target_slot == 'b' ? "b" : "a", target_name, other_name);
+#endif
 }
 
 static void
@@ -1000,6 +1015,9 @@ static void __attribute__((unused)) slot_set_active_b(void) { slot_set_active_ot
 static const char *
 slot_flash_boot_image(uint64_t bytes)
 {
+#ifdef DADA_USB_RAM_ONLY
+	return "RAM-only: WRITE_PROTECTED";
+#else
 	static const char16 want_a[] = u"boot_a", want_b[] = u"boot_b";
 	const char16 *want = (loader_slot == 'b') ? want_b : want_a;
 	efi_block_io *bio = find_partition_named(want, 7);
@@ -1027,6 +1045,7 @@ slot_flash_boot_image(uint64_t bytes)
 	bio->flush_blocks(bio);
 	slot_maintain_current();
 	return NULL;
+#endif
 }
 
 static int recovery_pending_after_return;

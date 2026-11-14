@@ -1,8 +1,30 @@
 /* ------------------------------------------------------------------------ */
 /* Fixed conventions shared with the boot shim, the packer and the kernel   */
 
-#define PAYLOAD_BASE        0xF0000000ULL
+#ifdef SOCRATES
+#include "../common/devices/socrates.contract.h"
+/* Historical DADA name, shared RAM-only implementation. Enforce it for a
+ * direct -DSOCRATES compiler invocation as well as for build.sh. */
+#undef DADA_USB_RAM_ONLY
+#define DADA_USB_RAM_ONLY SOCRATES_RAM_ONLY
+#if defined(PAYLOAD_BASE) && PAYLOAD_BASE != SOCRATES_PAYLOAD_BASE
+#error socrates PAYLOAD_BASE conflicts with the canonical device contract
+#endif
+#ifndef PAYLOAD_BASE
+#define PAYLOAD_BASE SOCRATES_PAYLOAD_BASE
+#endif
+#define PAYLOAD_RESERVE_SIZE SOCRATES_PAYLOAD_REGION_SIZE
+#define PAYLOAD_CONTAINER_MAX SOCRATES_PAYLOAD_CAP
+#else
+/* All other device defaults remain unchanged. */
+#ifndef PAYLOAD_BASE
+#define PAYLOAD_BASE 0xF0000000ULL
+#endif
+#endif
 #define PAYLOAD_MAGIC       0x50554E58u /* "XNUP" */
+#ifndef EFI_WRITE_PROTECTED
+#define EFI_WRITE_PROTECTED ((efi_status)0x8000000000000008ULL)
+#endif
 
 struct payload_header { uint32_t magic; uint32_t size; };
 struct payload_entry { char name[16]; uint32_t size; uint32_t reserved; };
@@ -35,9 +57,13 @@ struct payload_entry { char name[16]; uint32_t size; uint32_t reserved; };
  * loader downloads or parses (8-byte header + declared body + 16-byte entry padding).
  * The shim, the packers and the host scripts are built against the same numbers.
  */
-#define PAYLOAD_RESERVE_SIZE 0x03800000ULL        /* R: [PAYLOAD_BASE, PAYLOAD_BASE + R) stays reserved in the UEFI memory map */
-#define PAYLOAD_CONTAINER_MAX 0x03700000ULL       /* C: largest downloaded or parsed container, header included */
-#define PANIC_LOG_BASE      0xF3700000ULL         /* inside the reservation, right after the container bound; up to PAYLOAD_BASE + PAYLOAD_RESERVE_SIZE the RAM stays reserved */
+#ifndef PAYLOAD_RESERVE_SIZE
+#define PAYLOAD_RESERVE_SIZE 0x03800000ULL
+#endif
+#ifndef PAYLOAD_CONTAINER_MAX
+#define PAYLOAD_CONTAINER_MAX 0x03700000ULL
+#endif
+#define PANIC_LOG_BASE (PAYLOAD_BASE + PAYLOAD_CONTAINER_MAX)
 
 /* ------------------------------------------------------------------------ */
 /* XNU structures (pexpert/pexpert/arm64/boot.h, mach-o/loader.h)           */
@@ -488,6 +514,16 @@ lc_core_off(int64_t state)
 static void
 write_logs(const char *klog, uint64_t klog_len)
 {
+#ifdef DADA_USB_RAM_ONLY
+	compose_logs(klog, klog_len);
+	/* Match the existing no-storage log path, including its console echo. */
+	if (klog != NULL) {
+		print("\n== KERNEL LOG ==\n");
+		for (uint64_t i = 0; i < klog_len; i++) put_char(klog[i]);
+		print("\n== END OF LOG ==\n");
+	}
+	return;
+#else
 	efi_block_io *bio;
 
 	compose_logs(klog, klog_len);
@@ -549,6 +585,7 @@ write_logs(const char *klog, uint64_t klog_len)
 	print("log: %d bytes written to logdump (%x), read back %s (%x)\n", len, ws,
 	    EFI_ERROR(ws) ? "not tried" : same ? "the same" : "DIFFERENT", rs);
 	compose_logs(klog, klog_len);
+#endif
 }
 /* LC-WRITE-END */
 
@@ -590,6 +627,9 @@ inspect_one(const char16 *name, unsigned len, const char *tag)
 static void
 probe_one(const char16 *name, unsigned len, const char *tag)
 {
+#ifdef DADA_USB_RAM_ONLY
+	return;
+#else
 	static char blk[4096], orig[4096];
 
 	efi_block_io *bio = find_partition_named(name, len);
@@ -624,6 +664,7 @@ probe_one(const char16 *name, unsigned len, const char *tag)
 	int back = !EFI_ERROR(r2) && memcmp(blk, orig, sizeof(orig)) == 0;
 	print("probe %s: save=%x write=%x flush=%x read=%x pattern=%s restore=%x/%x restored=%s\n", tag,
 	    r0, w, f, r, same ? "seen" : "NOT seen", w2, f2, back ? "yes" : "NO -- CHECK THE PARTITION");
+#endif
 }
 
 static const char16 n_boot_a[] = u"boot_a";

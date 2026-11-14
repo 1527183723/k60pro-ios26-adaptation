@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e -o pipefail
 # Build everything a device needs, in order, skipping what cannot be built on this machine.
 #
 # usage: common/build.sh <device> [userland/build.sh variables...]
@@ -35,12 +36,17 @@ if ! skip kernel; then
 		[ -x xnu-deps/host/bin/ld64 ] || xnu-deps/setup.sh
 		# Wi-Fi radio driver (phones with a WCN6750): fetched and built once
 		[ "$WIFI_ATH11K" = 1 ] && [ ! -f xnu-deps/build/ath11k/out/ath11k.o ] && { tools/mk-ath11k.sh && tools/mk-wlfw.sh; }
-		# the export check fails after the kernel is linked, on purpose (xnu/README.md): judge by the file
+		# Every nonzero build status is fatal, even if a prior kernel exists.
 		touch out/.kernel-start
-		./xnu-build.sh -j"$(nproc)" -k > out/kernel-build.log 2>&1 || true
 		K=xnu-src/xnu-8796.121.2/BUILD/obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837
-		[ -f $K ] && { [ $K -nt out/.kernel-start ] || ! grep -q "error:" out/kernel-build.log; } &&
-			echo "build: kernel $(stat -c %s $K) bytes" || die "kernel build failed, see out/kernel-build.log"
+		if ./xnu-build.sh -j"$(nproc)" -k > out/kernel-build.log 2>&1; then
+			[ -s "$K" ] && [ "$K" -nt out/.kernel-start ] || die "kernel output was not refreshed, see out/kernel-build.log"
+			echo "build: kernel $(stat -c %s "$K") bytes"
+		else
+			status=$?
+			echo "build: kernel command failed (exit $status), see out/kernel-build.log" >&2
+			exit "$status"
+		fi
 	else
 		echo "build: no theos/iPhoneOS16.5.sdk: using prebuilt/mach.development.bcm2837"
 	fi

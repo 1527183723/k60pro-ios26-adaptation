@@ -654,7 +654,12 @@ block_poll(void)
 				if ((int)part == block_dsu_part) {
 					s = dsu_store_io(1, lba, bytes, block_buffer);
 				} else if (bio != NULL) {
+
+#ifdef DADA_USB_RAM_ONLY
+					s = EFI_WRITE_PROTECTED;
+#else
 					s = bio->write_blocks(bio, bio->media->media_id, lba, bytes, block_buffer);
+#endif
 					if (!EFI_ERROR(s)) {
 						bio->flush_blocks(bio);
 					}
@@ -901,7 +906,7 @@ run_on_other_cpu(uint64_t mpidr, uint64_t entry, uint64_t boot_args_pa, const st
 	clean_dcache((uint64_t)(uintptr_t)loader_ctx, (uint64_t)(uintptr_t)loader_ctx + sizeof(loader_ctx));
 	/* annibale uses polled USB; keep firmware IRQ handlers out of XNU's GIC setup. The mask
 	 * records the state the release point hands back, and a refused request restores it below. */
-	if (PLAT == &platform_annibale || PLAT == &platform_warsaw) {
+	if (PLAT == &platform_annibale || PLAT == &platform_warsaw || PLAT == &platform_socrates) {
 		watching_only = 1;
 		held_irq_mask();
 	}

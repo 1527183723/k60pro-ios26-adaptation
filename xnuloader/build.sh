@@ -10,6 +10,13 @@
 # loader-generic.efi alias beside it that spells out what the file is.
 set -e
 cd "$(dirname "$0")"
+# A socrates build is always a phone/RAM-only build; C enforces this too.
+case " ${DEVICE:-} ${UEFI_TARGET:-} ${EXTRA_CFLAGS:-} " in
+  *" socrates "*|*" -DSOCRATES "*|*" -DSOCRATES="*)
+    "${PYTHON:-python3}" -B ../common/devices/socrates_contract.py --check
+    EXTRA_CFLAGS="${EXTRA_CFLAGS:-} -DDIRECT_PHONE_PLAT -DSOCRATES -DDADA_USB_RAM_ONLY"
+    ;;
+esac
 out=loader.efi
 case " ${EXTRA_CFLAGS:-} " in *" -DDIRECT_PHONE_PLAT "*) out=loader-phone.efi ;; esac
 # "fastboot getvar build-id" says what the image claims to be: BUILD_ID names the source commit

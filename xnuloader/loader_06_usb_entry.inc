@@ -616,6 +616,13 @@ fb_command(char *cmd)
 		} else if (str_eq(cmd, "oem recovery")) {
 			const char *err = slot_unlock_held_recovery();
 			fb_reply(err == NULL ? "OKAY" : "FAIL", err == NULL ? "" : err);
+#ifdef DADA_USB_RAM_ONLY
+		} else if (starts_with(cmd, "flash:") || starts_with(cmd, "erase:") ||
+		    starts_with(cmd, "set_active:") || starts_with(cmd, "oem flash_boot") ||
+		    starts_with(cmd, "oem logwrite") || starts_with(cmd, "oem probe") ||
+		    starts_with(cmd, "oem dsu") || starts_with(cmd, "oem android")) {
+			fb_reply("FAIL", "RAM-only: WRITE_PROTECTED");
+#endif
 		} else if (lc_cmd_denied(kernel_resources_held, firmware_fault, live, cmd)) {
 			fb_reply("FAIL", live ? "a kernel is running (oem stop ends it)"
 			    : "a kernel may still hold memory or devices: reboot to start over");
@@ -883,7 +890,8 @@ fb_command(char *cmd)
 			fb_reply("OKAY", "");
 		} else if (starts_with(cmd, "reboot") || starts_with(cmd, "oem reboot")) {
 			fb_reply("OKAY", "");
-			if (PLAT == &platform_annibale || PLAT == &platform_warsaw || kernel_resources_held || firmware_fault) {
+			if (PLAT == &platform_annibale || PLAT == &platform_warsaw || PLAT == &platform_socrates ||
+			    kernel_resources_held || firmware_fault) {
 				/* annibale matches ArmPsciResetSystemLib; on any platform a held or faulted
 				 * state takes the same direct door before the stall and the callbacks. A
 				 * return means no reset: the loop below stays usable and owns the cable. */
@@ -1154,13 +1162,14 @@ efi_main(efi_handle image, efi_system_table *st)
 		print("display %d x %d at %x\n", (uint64_t)SCREEN.width, (uint64_t)SCREEN.height, SCREEN.base);
 	}
 	print("platform %s\n", PLAT->name);
-	skip_ufs_arbitration = (PLAT == &platform_annibale || PLAT == &platform_warsaw); /* ramdisk kernel, no UFS handover */
+	skip_ufs_arbitration = (PLAT == &platform_annibale || PLAT == &platform_warsaw || PLAT == &platform_socrates); /* ramdisk kernel, no UFS handover */
 
 	install_exception_hook();
 #ifdef DADA_USB_RAM_ONLY
 	/* A temporary USB boot must neither arm the host-silence watchdog nor enter
 	 * the five-second boot menu and its persistent slot-maintenance path.
 	 * Keep the original platform and peripheral implementation for XNU. */
+	print("K60PRO_USB_RAM_ONLY_V1\n");
 	print("dada: USB RAM boot; watchdog arming and menu countdown disabled\n");
 	print("dada: storage survey and automatic slot maintenance bypassed\n");
 	if (usb_start()) {

@@ -1,0 +1,15 @@
+{
+  "device": "socrates",
+  "platform": "sm8550",
+  "fd_base": "0xA7000000",
+  "fd_size": "0x00400000",
+  "payload_base": "0xC8000000",
+  "payload_cap": "0x03700000",
+  "payload_region_size": "0x03800000",
+  "panic_log_base": "0xCB700000",
+  "fb_base": "0xB8000000",
+  "width": 1440,
+  "height": 3200,
+  "ram_only": true,
+  "bootargs": "touchscreen=0 fb_flip=0 fb_dcs=0 cpus=7 bootcpu=7"
+}

@@ -30,6 +30,7 @@
 #include <pexpert/pexpert.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/redwood_input.h>
 
 extern "C" {
 #include <console/video_console.h>
