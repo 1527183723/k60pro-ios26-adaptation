@@ -4,3 +4,4 @@ xnu-deps/
 *.o
 *.pyc
 __pycache__/
+xnuloader/loader-phone.efi
