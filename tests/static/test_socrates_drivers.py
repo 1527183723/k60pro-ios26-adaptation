@@ -160,7 +160,7 @@ class SocratesDriverContracts(unittest.TestCase):
             self.assertIn("bool redwood_platform_is_socrates(void);", linked)
             self.assertIn("extern uint32_t redwood_frames_shown;", linked)
             cpp = source(tree, "iokit/Kernel/MiniIOMobileFramebuffer.cpp")
-            self.assertLess(cpp.index("#include <sys/redwood_input.h>"),
+            self.assertLess(cpp.index('#include "../../bsd/sys/redwood_input.h"'),
                             cpp.index('#include "MiniFramebufferFlip.inc"'))
 
     def test_revision_diagnostic_is_socrates_only_and_once(self):
