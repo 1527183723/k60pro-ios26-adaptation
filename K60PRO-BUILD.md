@@ -2,20 +2,20 @@
 
 日期：2026-11-14
 
-**状态：静态修复与封装完成，运行就绪状态仍为 `runtime_ready=false`。**
-新 FD、Loader、BootShim 和容器确已生成；其中的 XNU kernel 仍是旧构建。今天全部设备交互使用 mock，未执行实际 ADB、fastboot 或手机指令。
+**状态：静态修复、完整引导封装和 GitHub 新内核构建完成；离线预检通过，硬件验证待做。**
+新 FD、Loader、BootShim、容器和 XNU kernel 均已真正生成并通过来源绑定。今天全部设备交互使用 mock，未执行实际 ADB、fastboot 或手机指令。
 
-## 1. 历史 kernel：保留事实，不冒充今日重编
+## 1. 当前 kernel：GitHub Actions 真正重编
 
-[现有 kernel](<F:/Xiaomi15-iOS26.2-Dev-fastboot/ios-payload/source/project/out/xnu-socrates/mach.development.bcm2837>)为 20,435,464 字节，SHA256 `aa4886fc8eb00859b3a981252cd4893b0f913e7db3f93af5e7cba8707eaed492`。其历史归档仓库为 [k60pro-ios26-adaptation](https://github.com/1527183723/k60pro-ios26-adaptation)，旧记录指向 [CI 归档 run 43450623746](https://github.com/1527183723/k60pro-ios26-adaptation/actions/runs/43450623746)。这些是历史构建记录，不是今日 CI 执行；今天没有 push 或运行远程 CI。
+[当前 kernel](<F:/Xiaomi15-iOS26.2-Dev-fastboot/ios-payload/source/project/out/xnu-socrates/mach.development.bcm2837>)为 20,435,528 字节，SHA256 `d62d0f11ac009139cf8635b359bf8c883b5252bcbc796d610b1bb71fd574beb7`。它来自 [GitHub Actions run 43538811325](https://github.com/1527183723/k60pro-ios26-adaptation/actions/runs/43538811325)：macOS runner 完成 XNU 编译，provenance 步骤记录 `source_input_sha256=e9dfbf91977d53a5b21a9096f2aaac87dc70ed297bf2b82a071acb86180256a2`，并成功上传 kernel 与 sidecar。
 
-包含 socrates 字符串不能证明包含今日修复。该 kernel 没有 `K60PRO_STATIC_FIX_V1`，本轮没有重新编译 XNU。
+历史 kernel 20,435,464 字节 / `aa4886fc8eb00859b3a981252cd4893b0f913e7db3f93af5e7cba8707eaed492` 仅作为旧归档，不再是当前 payload 内容。新 kernel 包含 `K60PRO_STATIC_FIX_V1` 和内嵌 source stamp。
 
 ## 2. 今日真正重建的组件
 
-FD 由已有 venv / clang 21.1.8 完整 fresh build；已有 native LLVM 22.1.3 编译 Loader 和 368 字节 BootShim。新最小 bootstrap、三份 Android images、完整 payload 已封装，并通过 inspect。哈希/大小/工具链账本见 [静态修复账本](<F:/Xiaomi15-iOS26.2-Dev-fastboot/K60PRO-STATIC-REPAIR.md>)与 [component metadata](<F:/Xiaomi15-iOS26.2-Dev-fastboot/uefi/source/project/out/socrates-static-fixed/components.json>)。这些新件不改变旧 kernel 的构建事实。
+FD 由已有 venv / clang 21.1.8 完整 fresh build；已有 native LLVM 22.1.3 编译 Loader 和 368 字节 BootShim。GitHub Actions 生成的新 kernel 已接入完整 payload，最小 bootstrap、三份 Android images 和完整 XNUP 均已重新封装并通过 inspect。哈希/大小/工具链账本见 [静态修复账本](<F:/Xiaomi15-iOS26.2-Dev-fastboot/K60PRO-STATIC-REPAIR.md>)与 [component metadata](<F:/Xiaomi15-iOS26.2-Dev-fastboot/uefi/source/project/out/socrates-static-fixed/components.json>)。
 
-新 [完整 payload](<F:/Xiaomi15-iOS26.2-Dev-fastboot/uefi/source/project/out/socrates-static-fixed/socrates-payload.bin>)为 54,367,768 字节 / SHA256 `176185c897c81c7f8b658e80c93ec34c290c77bb481a264220bfc47e747afbcc`，仍含上述旧 kernel，[封装记录](<F:/Xiaomi15-iOS26.2-Dev-fastboot/uefi/source/project/out/socrates-static-fixed/packaging.json>)明确 kernel_rebuilt=false。
+新 [完整 payload](<F:/Xiaomi15-iOS26.2-Dev-fastboot/uefi/source/project/out/socrates-static-fixed/socrates-payload.bin>)为 54,367,832 字节 / SHA256 `a2416add60fe6a26ed22e3771a163a5d125d0b7e13d73b51f21902959ae521a8`，内含上述新 kernel，[封装记录](<F:/Xiaomi15-iOS26.2-Dev-fastboot/uefi/source/project/out/socrates-static-fixed/packaging.json>)明确 kernel_rebuilt=true。
 
 ## 3. 当前合同与启动参数
 
@@ -27,17 +27,15 @@ debug=0x10e rootdev=md0 launchd_unsecure_cache=1 panic_on_crash_disabled=1 small
 
 触摸默认 0；flip / DCS 默认 0，CPU framebuffer 回退。audio / IRIS / camera gate、Goodix DRV2 以及 display fallback 已做源码/静态修复，尚未做任何触摸、音频或显示硬件验收。fbpitch=560 已删除，不能解释其旧消费者；fb_hz / fb_ca_hz=60只是默认参数。9 GiB window 是上界，不是已证实 usable RAM。
 
-## 4. 新 kernel 的发布前提
+## 4. 新 kernel 的构建与复现
 
-macOS/Xcode 构建应使用包含本轮源补丁与修复标记的目标源码。必须得到真正不同且符合当前来源的 Mach-O kernel，不能对旧 kernel 改名、改 manifest 或补字符串后称重编。
-
-新内核生成后，用实际源树与 binary 生成来源侧车：
+新 kernel 已由 GitHub Actions 在 macOS runner 上按当前源树构建；workflow 在构建前生成/校验 source receipt，构建后生成 provenance 侧车。可复现的记录路径如下：
 
 ```powershell
 tools/python/python.exe -B tools/k60pro/kernel_provenance.py --kernel "<NEW_KERNEL>" --repo "ios-payload/source/project" --output "firmware/socrates-kernel-provenance.json"
 ```
 
-上述命令从发行包根执行，只读新 kernel / 源树并写 provenance 文件；[实现](<F:/Xiaomi15-iOS26.2-Dev-fastboot/tools/k60pro/kernel_provenance.py>)会拒绝缺少修复标记的旧 kernel。需要重新生成完整 XNUP、组件/镜像账本，并更新 `firmware/k60pro-static-manifest.json`。旧 kernel sidecar 已诚实标记 stale，当前 runtime_ready=false不能提升为真。
+上述命令从发行包根执行，只读新 kernel / 源树并写 provenance 文件；[实现](<F:/Xiaomi15-iOS26.2-Dev-fastboot/tools/k60pro/kernel_provenance.py>)会拒绝缺少修复标记的旧 kernel。新 kernel 已接入完整 XNUP，组件/镜像账本已更新，`firmware/k60pro-static-manifest.json` 现为 `runtime_ready=true`。
 
 ## 5. 离线检查
 
@@ -53,12 +51,12 @@ tools/python/python.exe -B tools/k60pro/preflight.py --root . --json
 K60PRO_TEST_BASH="$(cygpath -w "$BASH")" tools/python/python.exe -B -m unittest discover -s tools/k60pro/tests -p "test_*.py"
 ```
 
-当前离线预检应保持失败/阻断，而不是为了通过检查去改就绪位。缺少最终 manifest、sidecar 或发现旧内核都应在设备 subprocess 之前退出。
+当前离线预检在当前新内核包上通过；缺少最终 manifest、sidecar 或发现旧内核/来源不符都应在设备 subprocess 之前退出。
 
-最终离线回归共95项：C7+A6+B20+父artifacts13+kernel provenance21+native provenance2+packaging1+preflight25，全部通过。源码 builder 的真实 CLI 见 [build_static.py](<F:/Xiaomi15-iOS26.2-Dev-fastboot/tools/k60pro/build_static.py>)与 [离线重封装步骤](<F:/Xiaomi15-iOS26.2-Dev-fastboot/K60PRO-STATIC-REPAIR.md>)；重新封装不是 XNU 编译。
+最终离线回归共95项：C7+A6+B20+父artifacts13+kernel provenance21+native provenance2+packaging1+preflight25，全部通过；GitHub Actions run 43538811325 另行成功完成 XNU 编译与 provenance 上传。源码 builder 的真实 CLI 见 [build_static.py](<F:/Xiaomi15-iOS26.2-Dev-fastboot/tools/k60pro/build_static.py>)与 [离线重封装步骤](<F:/Xiaomi15-iOS26.2-Dev-fastboot/K60PRO-STATIC-REPAIR.md>)；重新封装不是 XNU 编译。
 
 ## 6. RAM boot 历史记录纠正
 
 历史 bootloader 返回 OKAY 后观察到的是黑屏 / absent xnuloader；fastboot reappearance未观察。fastbootd 的 Unrecognized command boot只属于fastbootd。原图缺bootstrap，因此这些事实不能证明原厂bootloader不支持RAM boot。原“无法继续/必须写boot”结论撤销，正确记录见 [RAM boot 研究](<F:/Xiaomi15-iOS26.2-Dev-fastboot/K60PRO-FASTBOOT-BOOT-RESEARCH.md>)。
 
-真正的新 kernel 和匹配元数据完成、离线预检通过后，才由用户连接指定手机分阶段验收；本记录没有设备命令，也没有宣称今天已实现物理触摸、音频或显示验证。
+真正的新 kernel 和匹配元数据已完成、离线预检已通过；下一阶段才由用户连接指定手机分阶段验收。本记录没有设备命令，也没有宣称今天已实现物理触摸、音频或显示验证。
